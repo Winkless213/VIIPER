@@ -139,6 +139,7 @@ type DualSense struct {
 	mediaMu            sync.Mutex
 	microphoneMu       sync.Mutex
 	callbackMu         sync.RWMutex
+	rawHapticsCapture  *RawHapticsCapture
 	edgeFeatureControl edgeFeatureControlTransactions
 }
 
@@ -677,6 +678,9 @@ func (d *DualSense) resetSpeakerAudioLocked() uint64 {
 	d.v5HapticsQueueCount = 0
 	d.hapticsPCMStartedAt = time.Time{}
 	d.speakerAudioFeature.resetStreamGain()
+	if d.rawHapticsCapture != nil {
+		d.rawHapticsCapture.reset(d.speakerMediaGeneration)
+	}
 	return d.speakerMediaGeneration
 }
 
@@ -997,6 +1001,9 @@ func (d *DualSense) handleHapticsAudioOutGeneration(out []byte,
 		return false
 	}
 	processed, lease := d.speakerAudioFeature.applyPCM(out, USBHapticsAudioChannels)
+	if d.rawHapticsCapture != nil {
+		d.rawHapticsCapture.push(processed, generation, receivedAt)
+	}
 	d.mediaMu.Unlock()
 	defer lease.release()
 
